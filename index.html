@@ -1,10 +1,252 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Test</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Artist Reachout Manager</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: Arial, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            min-height: 100vh; 
+            padding: 20px; 
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.2); margin-bottom: 20px; }
+        h1 { color: #333; margin-bottom: 10px; font-size: 32px; }
+        h2 { color: #333; margin-bottom: 15px; font-size: 24px; }
+        p { color: #666; margin-bottom: 15px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .stat-card { background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-number { font-size: 36px; font-weight: bold; color: #667eea; }
+        .stat-label { color: #666; font-size: 14px; margin-top: 5px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #333; font-weight: 500; }
+        input, textarea, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        input:focus, textarea:focus, select:focus { outline: none; border-color: #667eea; }
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.3s; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-secondary:hover { background: #5a6268; }
+        .artist-item { background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .artist-info h3 { color: #333; margin-bottom: 5px; }
+        .artist-info p { color: #666; margin: 3px 0; font-size: 14px; }
+        .artist-actions { display: flex; gap: 10px; }
+        .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .status-not-contacted { background: #e9ecef; color: #495057; }
+        .status-contacted { background: #cfe2ff; color: #084298; }
+        .status-responded { background: #d1e7dd; color: #0f5132; }
+        .hidden { display: none; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .search-box { flex: 1; min-width: 200px; }
+        .empty-state { text-align: center; padding: 40px; color: #999; }
+    </style>
 </head>
 <body>
-    <h1>Hello! Can you see this?</h1>
-    <p>If yes, type "yes" and I'll give you the working app code.</p>
+    <div class="container">
+        <div class="card">
+            <h1>🎵 Artist Reachout Manager</h1>
+            <p>Track and manage your artist outreach campaigns</p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalCount">0</div>
+                <div class="stat-label">Total Artists</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="contactedCount">0</div>
+                <div class="stat-label">Contacted</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="respondedCount">0</div>
+                <div class="stat-label">Responded</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Add New Artist</h2>
+            <div class="form-group">
+                <label>Artist Name *</label>
+                <input type="text" id="artistName" placeholder="Enter artist name">
+            </div>
+            <div class="form-group">
+                <label>Email *</label>
+                <input type="email" id="artistEmail" placeholder="artist@email.com">
+            </div>
+            <div class="form-group">
+                <label>Genre</label>
+                <input type="text" id="artistGenre" placeholder="Hip-hop, Pop, R&B, etc.">
+            </div>
+            <div class="form-group">
+                <label>Platform</label>
+                <input type="text" id="artistPlatform" placeholder="Instagram, Spotify, SoundCloud, etc.">
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea id="artistNotes" rows="3" placeholder="Any additional notes..."></textarea>
+            </div>
+            <button class="btn btn-success" onclick="addArtist()">Add Artist</button>
+        </div>
+
+        <div class="card">
+            <div class="controls">
+                <div class="search-box">
+                    <input type="text" id="searchBox" placeholder="Search artists..." oninput="filterArtists()">
+                </div>
+                <select id="statusFilter" onchange="filterArtists()">
+                    <option value="all">All Status</option>
+                    <option value="not-contacted">Not Contacted</option>
+                    <option value="contacted">Contacted</option>
+                    <option value="responded">Responded</option>
+                </select>
+            </div>
+            <h2>Your Artists (<span id="artistCount">0</span>)</h2>
+            <div id="artistList">
+                <div class="empty-state">No artists yet. Add your first artist above!</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let artists = [];
+        let nextId = 1;
+
+        function addArtist() {
+            const name = document.getElementById('artistName').value.trim();
+            const email = document.getElementById('artistEmail').value.trim();
+            const genre = document.getElementById('artistGenre').value.trim();
+            const platform = document.getElementById('artistPlatform').value.trim();
+            const notes = document.getElementById('artistNotes').value.trim();
+
+            if (!name || !email) {
+                alert('Please enter artist name and email');
+                return;
+            }
+
+            artists.push({
+                id: nextId++,
+                name: name,
+                email: email,
+                genre: genre,
+                platform: platform,
+                notes: notes,
+                status: 'not-contacted'
+            });
+
+            document.getElementById('artistName').value = '';
+            document.getElementById('artistEmail').value = '';
+            document.getElementById('artistGenre').value = '';
+            document.getElementById('artistPlatform').value = '';
+            document.getElementById('artistNotes').value = '';
+
+            renderArtists();
+            updateStats();
+        }
+
+        function deleteArtist(id) {
+            if (confirm('Are you sure you want to delete this artist?')) {
+                artists = artists.filter(a => a.id !== id);
+                renderArtists();
+                updateStats();
+            }
+        }
+
+        function updateStatus(id, newStatus) {
+            const artist = artists.find(a => a.id === id);
+            if (artist) {
+                artist.status = newStatus;
+                renderArtists();
+                updateStats();
+            }
+        }
+
+        function sendEmail(artist) {
+            const subject = encodeURIComponent('Collaboration Opportunity');
+            const body = encodeURIComponent(`Hi ${artist.name},\n\nI hope this message finds you well! I've been following your work and I'm really impressed by your ${artist.genre || 'music'} style.\n\nI'd love to discuss a potential collaboration opportunity with you. Would you be available for a brief chat to explore this further?\n\nLooking forward to hearing from you!\n\nBest regards`);
+            
+            window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${artist.email}&su=${subject}&body=${body}`, '_blank');
+            
+            if (artist.status === 'not-contacted') {
+                updateStatus(artist.id, 'contacted');
+            }
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                'not-contacted': 'Not Contacted',
+                'contacted': 'Contacted',
+                'responded': 'Responded'
+            };
+            return labels[status] || status;
+        }
+
+        function filterArtists() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            const filtered = artists.filter(artist => {
+                const matchesSearch = artist.name.toLowerCase().includes(searchTerm) ||
+                                     artist.email.toLowerCase().includes(searchTerm) ||
+                                     (artist.genre && artist.genre.toLowerCase().includes(searchTerm));
+                
+                const matchesStatus = statusFilter === 'all' || artist.status === statusFilter;
+
+                return matchesSearch && matchesStatus;
+            });
+
+            renderArtists(filtered);
+        }
+
+        function renderArtists(artistsToRender = null) {
+            const list = document.getElementById('artistList');
+            const displayArtists = artistsToRender || artists;
+
+            if (displayArtists.length === 0) {
+                list.innerHTML = '<div class="empty-state">No artists found.</div>';
+                document.getElementById('artistCount').textContent = '0';
+                return;
+            }
+
+            document.getElementById('artistCount').textContent = displayArtists.length;
+
+            list.innerHTML = displayArtists.map(artist => `
+                <div class="artist-item">
+                    <div class="artist-info">
+                        <h3>${artist.name} <span class="status-badge status-${artist.status}">${getStatusLabel(artist.status)}</span></h3>
+                        <p>📧 ${artist.email}</p>
+                        ${artist.genre ? `<p>🎵 ${artist.genre}</p>` : ''}
+                        ${artist.platform ? `<p>📱 ${artist.platform}</p>` : ''}
+                        ${artist.notes ? `<p>📝 ${artist.notes}</p>` : ''}
+                    </div>
+                    <div class="artist-actions">
+                        <button class="btn btn-primary" onclick='sendEmail(${JSON.stringify(artist)})'>Email</button>
+                        <select onchange="updateStatus(${artist.id}, this.value)" class="btn">
+                            <option value="not-contacted" ${artist.status === 'not-contacted' ? 'selected' : ''}>Not Contacted</option>
+                            <option value="contacted" ${artist.status === 'contacted' ? 'selected' : ''}>Contacted</option>
+                            <option value="responded" ${artist.status === 'responded' ? 'selected' : ''}>Responded</option>
+                        </select>
+                        <button class="btn btn-danger" onclick="deleteArtist(${artist.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateStats() {
+            document.getElementById('totalCount').textContent = artists.length;
+            document.getElementById('contactedCount').textContent = artists.filter(a => a.status === 'contacted' || a.status === 'responded').length;
+            document.getElementById('respondedCount').textContent = artists.filter(a => a.status === 'responded').length;
+        }
+
+        // Initial render
+        renderArtists();
+        updateStats();
+    </script>
 </body>
 </html>
