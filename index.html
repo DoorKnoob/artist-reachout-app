@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Artist Reachout Manager</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body { margin: 0; padding: 0; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script>
+    // Lucide icons as inline SVG
+    const icons = {
+      plus: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>',
+      search: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
+      mail: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>',
+      send: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>',
+      edit: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+      trash: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>',
+      x: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>',
+      upload: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>',
+      fileText: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>',
+      externalLink: '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>'
+    };
+
+    // State
+    let state = {
+      artists: [],
+      searchTerm: '',
+      filterStatus: 'all',
+      showForm: false,
+      editingId: null,
+      showEmailModal: false,
+      showTemplateModal: false,
+      selectedArtist: null,
+      senderEmail: '',
+      emailTemplate: {
+        subject: 'Collaboration Opportunity',
+        body: `Hi {artist_name},
+
+I hope this message finds you well! I've been following your work and I'm really impressed by your {genre} style.
+
+I'd love to discuss a potential collaboration opportunity with you. Would you be available for a brief chat to explore this further?
+
+Looking forward to hearing from you!
+
+Best regards`
+      },
+      formData: {
+        name: '',
+        email: '',
+        genre: '',
+        platform: '',
+        profileUrl: '',
+        notes: '',
+        status: 'not-contacted'
+      }
+    };
+
+    const statusOptions = [
+      { value: 'not-contacted', label: 'Not Contacted', color: 'bg-gray-100 text-gray-800' },
+      { value: 'contacted', label: 'Contacted', color: 'bg-blue-100 text-blue-800' },
+      { value: 'responded', label: 'Responded', color: 'bg-green-100 text-green-800' },
+      { value: 'interested', label: 'Interested', color: 'bg-purple-100 text-purple-800' },
+      { value: 'declined', label: 'Declined', color: 'bg-red-100 text-red-800' }
+    ];
+
+    // Functions
+    function fillTemplate(template, artist) {
+      return template
+        .replace(/{artist_name}/g, artist.name)
+        .replace(/{genre}/g, artist.genre || 'music')
+        .replace(/{platform}/g, artist.platform || 'your platform');
+    }
+
+    function handleSubmit() {
+      if (!state.formData.name || !state.formData.email) return;
+      
+      if (state.editingId) {
+        state.artists = state.artists.map(a => 
+          a.id === state.editingId ? { ...state.formData, id: state.editingId } : a
+        );
+        state.editingId = null;
+      } else {
+        state.artists.push({ 
+          ...state.formData, 
+          id: Date.now(), 
+          createdAt: new Date().toISOString() 
+        });
+      }
+      
+      state.formData = {
+        name: '', email: '', genre: '', platform: '', 
+        profileUrl: '', notes: '', status: 'not-contacted'
+      };
+      state.showForm = false;
+      render();
+    }
+
+    function handleEdit(artist) {
+      state.formData = {...artist};
+      state.editingId = artist.id;
+      state.showForm = true;
+      render();
+    }
+
+    function handleDelete(id) {
+      if (confirm('Delete this artist?')) {
+        state.artists = state.artists.filter(a => a.id !== id);
+        render();
+      }
+    }
+
+    function openEmailModal(artist) {
+      state.selectedArtist = artist;
+      state.showEmailModal = true;
+      render();
+    }
+
+    function sendEmail() {
+      if (!state.selectedArtist) return;
+      const subject = encodeURIComponent(fillTemplate(state.emailTemplate.subject, state.selectedArtist));
+      const body = encodeURIComponent(fillTemplate(state.emailTemplate.body, state.selectedArtist));
+      window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${state.selectedArtist.email}&su=${subject}&body=${body}`, '_blank');
+      
+      state.artists = state.artists.map(a => 
+        a.id === state.selectedArtist.id ? { ...a, status: 'contacted' } : a
+      );
+      state.showEmailModal = false;
+      state.selectedArtist = null;
+      render();
+    }
+
+    function sendEmailDirectly() {
+      if (!state.selectedArtist || !state.senderEmail) {
+        alert('Please enter your email');
+        return;
+      }
+      const subject = fillTemplate(state.emailTemplate.subject, state.selectedArtist);
+      const body = fillTemplate(state.emailTemplate.body, state.selectedArtist);
+      window.location.href = `mailto:${state.selectedArtist.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      
+      state.artists = state.artists.map(a => 
+        a.id === state.selectedArtist.id ? { ...a, status: 'contacted' } : a
+      );
+      state.showEmailModal = false;
+      state.selectedArtist = null;
+      render();
+    }
+
+    function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const data = new Uint8Array(evt.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+          const imported = jsonData.map((row, i) => ({
+            id: Date.now() + i,
+            name: row.name || row.Name || row.artist || row.Artist || '',
+            email: row.email || row.Email || '',
+            genre: row.genre || row.Genre || '',
+            platform: row.platform || row.Platform || '',
+            profileUrl: row.profileUrl || row.profile_url || row['Profile URL'] || '',
+            notes: row.notes || row.Notes || '',
+            status: row.status || row.Status || 'not-contacted',
+            createdAt: new Date().toISOString()
+          })).filter(a => a.name && a.email);
+
+          state.artists = [...state.artists, ...imported];
+          alert(`Imported ${imported.length} artists!`);
+          render();
+        } catch (error) {
+          alert('Error reading file');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function getFilteredArtists() {
+      return state.artists.filter(artist => {
+        const search = state.searchTerm.toLowerCase();
+        const matchesSearch = artist.name.toLowerCase().includes(search) ||
+                             artist.genre.toLowerCase().includes(search) ||
+                             artist.email.toLowerCase().includes(search);
+        const matchesFilter = state.filterStatus === 'all' || artist.status === state.filterStatus;
+        return matchesSearch && matchesFilter;
+      });
+    }
+
+    function getStats() {
+      return {
+        total: state.artists.length,
+        contacted: state.artists.filter(a => a.status !== 'not-contacted').length,
+        responded: state.artists.filter(a => a.status === 'responded' || a.status === 'interested').length,
+        interested: state.artists.filter(a => a.status === 'interested').length
+      };
+    }
+
+    // Render
+    function render() {
+      const stats = getStats();
+      const filtered = getFilteredArtists();
+      
+      document.getElementById('app').innerHTML = `
+        <div class="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 p-6">
+          <div class="max-w-7xl mx-auto">
+            <!-- Header -->
+            <header class="mb-8 flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <h1 class="text-4xl font-bold text-gray-900 mb-2">Artist Reachout Manager</h1>
+                <p class="text-gray-600">Track and manage your artist outreach campaigns</p>
+              </div>
+              <div class="flex gap-3">
+                <label class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2 cursor-pointer">
+                  ${icons.upload}
+                  Import Excel
+                  <input type="file" accept=".xlsx,.xls" onchange="handleFileUpload(event)" class="hidden">
+                </label>
+                <button onclick="state.showTemplateModal = true; render();" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2">
+                  ${icons.fileText}
+                  Email Template
+                </button>
+              </div>
+            </header>
+
+            <!-- Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600 mb-1">Total Artists</div>
+                <div class="text-3xl font-bold text-gray-900">${stats.total}</div>
+              </div>
+              <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600 mb-1">Contacted</div>
+                <div class="text-3xl font-bold text-blue-600">${stats.contacted}</div>
+              </div>
+              <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600 mb-1">Responded</div>
+                <div class="text-3xl font-bold text-green-600">${stats.responded}</div>
+              </div>
+              <div class="bg-white rounded-lg shadow p-4">
+                <div class="text-sm text-gray-600 mb-1">Interested</div>
+                <div class="text-3xl font-bold text-purple-600">${stats.interested}</div>
+              </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="bg-white rounded-lg shadow p-4 mb-6">
+              <div class="flex flex-col md:flex-row gap-4 items-center">
+                <div class="flex-1 relative w-full">
+                  <div class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">${icons.search}</div>
+                  <input type="text" placeholder="Search artists..." value="${state.searchTerm}" 
+                    oninput="state.searchTerm = this.value; render();"
+                    class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                </div>
+                <select onchange="state.filterStatus = this.value; render();" 
+                  class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                  <option value="all">All Status</option>
+                  ${statusOptions.map(opt => `<option value="${opt.value}" ${state.filterStatus === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                </select>
+                <button onclick="state.showForm = true; render();" 
+                  class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2 whitespace-nowrap">
+                  ${icons.plus}
+                  Add Artist
+                </button>
+              </div>
+            </div>
+
+            <!-- Form -->
+            ${state.showForm ? `
+              <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">${state.editingId ? 'Edit' : 'Add'} Artist</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+                    <input type="text" value="${state.formData.name}" 
+                      oninput="state.formData.name = this.value"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                    <input type="email" value="${state.formData.email}" 
+                      oninput="state.formData.email = this.value"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Genre</label>
+                    <input type="text" value="${state.formData.genre}" 
+                      oninput="state.formData.genre = this.value"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Platform</label>
+                    <input type="text" value="${state.formData.platform}" 
+                      oninput="state.formData.platform = this.value"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Profile URL</label>
+                    <input type="url" value="${state.formData.profileUrl}" 
+                      oninput="state.formData.profileUrl = this.value"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select onchange="state.formData.status = this.value"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">
+                      ${statusOptions.map(opt => `<option value="${opt.value}" ${state.formData.status === opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea rows="3" oninput="state.formData.notes = this.value"
+                      class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500">${state.formData.notes}</textarea>
+                  </div>
+                  <div class="md:col-span-2 flex gap-3">
+                    <button onclick="handleSubmit()" class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                      ${state.editingId ? 'Update' : 'Add'} Artist
+                    </button>
+                    <button onclick="state.showForm = false; state.editingId = null; render();" 
+                      class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
+                  </div>
+                </div>
+              </div>
+            ` : ''}
+
+            <!-- Artists List -->
+            <div class="space-y-4">
+              ${filtered.length === 0 ? `
+                <div class="bg-white rounded-lg shadow p-12 text-center">
+                  <div class="text-gray-300 mb-4">${icons.mail}</div>
+                  <h3 class="text-xl font-semibold text-gray-900 mb-2">No Artists Found</h3>
+                  <p class="text-gray-600">${state.artists.length === 0 ? 'Add your first artist' : 'Try adjusting filters'}</p>
+                </div>
+              ` : filtered.map(artist => {
+                const statusInfo = statusOptions.find(s => s.value === artist.status);
+                return `
+                  <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+                    <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                      <div class="flex-1">
+                        <div class="flex items-start gap-3 mb-2">
+                          <h3 class="text-xl font-bold text-gray-900">${artist.name}</h3>
+                          <span class="px-3 py-1 rounded-full text-xs font-medium ${statusInfo.color}">${statusInfo.label}</span>
+                        </div>
+                        <div class="space-y-2 text-sm text-gray-600">
+                          <div class="flex items-center gap-2">${icons.mail} ${artist.email}</div>
+                          ${artist.genre ? `<div>Genre: ${artist.genre}</div>` : ''}
+                          ${artist.platform ? `<div>Platform: ${artist.platform}</div>` : ''}
+                          ${artist.profileUrl ? `<a href="${artist.profileUrl}" target="_blank" class="flex items-center gap-2 text-purple-600">${icons.externalLink} View Profile</a>` : ''}
+                          ${artist.notes ? `<div class="mt-2 p-3 bg-gray-50 rounded"><b>Notes:</b> ${artist.notes}</div>` : ''}
+                        </div>
+                      </div>
+                      <div class="flex gap-2">
+                        <button onclick='openEmailModal(${JSON.stringify(artist)})' 
+                          class="p-2 text-green-600 hover:bg-green-50 rounded-lg" title="Send Email">${icons.send}</button>
+                        <button onclick='handleEdit(${JSON.stringify(artist)})' 
+                          class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg" title="Edit">${icons.edit}</button>
+                        <button onclick="handleDelete(${artist.id})" 
+                          class="p-2 text-red-600 hover:bg-red-50 rounded-lg" title="Delete">${icons.trash}</button>
+                      </div>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+
+        <!-- Email Modal -->
+        ${state.showEmailModal && state.selectedArtist ? `
+          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <h2 class="text-2xl font-bold">Send Email to ${state.selectedArtist.name}</h2>
+                  <button onclick="state.showEmailModal = false; state.selectedArtist = null; render();" 
+                    class="text-gray-500 hover:text-gray-700">${icons.x}</button>
+                </div>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Your Email:</label>
+                    <input type="email" value="${state.senderEmail}" 
+                      oninput="state.senderEmail = this.value" placeholder="your@email.com"
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-green-500">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">To:</label>
+                    <div class="px-4 py-2 bg-gray-50 rounded-lg">${state.selectedArtist.email}</div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Subject:</label>
+                    <div class="px-4 py-2 bg-gray-50 rounded-lg">${fillTemplate(state.emailTemplate.subject, state.selectedArtist)}</div>
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Message:</label>
+                    <div class="px-4 py-2 bg-gray-50 rounded-lg whitespace-pre-wrap">${fillTemplate(state.emailTemplate.body, state.selectedArtist)}</div>
+                  </div>
+                </div>
+                <div class="mt-6 flex gap-3">
+                  <button onclick="sendEmailDirectly()" ${!state.senderEmail ? 'disabled' : ''}
+                    class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2">
+                    ${icons.send} Send Email
+                  </button>
+                  <button onclick="sendEmail()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Open in Gmail
+                  </button>
+                  <button onclick="state.showEmailModal = false; state.selectedArtist = null; render();" 
+                    class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+
+        <!-- Template Modal -->
+        ${state.showTemplateModal ? `
+          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <h2 class="text-2xl font-bold">Email Template</h2>
+                  <button onclick="state.showTemplateModal = false; render();" 
+                    class="text-gray-500 hover:text-gray-700">${icons.x}</button>
+                </div>
+                <p class="text-sm text-gray-600 mb-4">Use: {artist_name}, {genre}, {platform}</p>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Subject:</label>
+                    <input type="text" value="${state.emailTemplate.subject}" 
+                      oninput="state.emailTemplate.subject = this.value"
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500">
+                  </div>
+                  <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Body:</label>
+                    <textarea rows="12" oninput="state.emailTemplate.body = this.value"
+                      class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-indigo-500 font-mono text-sm">${state.emailTemplate.body}</textarea>
+                  </div>
+                </div>
+                <div class="mt-6">
+                  <button onclick="state.showTemplateModal = false; render();" 
+                    class="px
